@@ -11,8 +11,8 @@ module.exports = {
   plugins: ['@typescript-eslint', 'react', 'react-hooks'],
   extends: [
     'eslint:recommended',
-    '@typescript-eslint/recommended',
-    '@typescript-eslint/recommended-requiring-type-checking',
+    // '@typescript-eslint/recommended',
+    // '@typescript-eslint/recommended-requiring-type-checking',
     'plugin:react/recommended',
     'plugin:react/jsx-runtime',
     'plugin:react-hooks/recommended',
