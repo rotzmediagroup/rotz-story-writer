@@ -9,8 +9,7 @@ import { createServer } from 'http';
 import { logger } from './config/logger';
 import { connectDatabase } from './config/database';
 import { connectRedis } from './config/redis';
-import { errorHandler } from './api/middleware/error-handler';
-import { notFoundHandler } from './api/middleware/not-found';
+import apiRoutes from './routes/index';
 
 // Load environment variables
 dotenv.config();
@@ -41,14 +40,19 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes (will be added in later tasks)
-app.use('/api/v1', (req, res, next) => {
-  res.json({ message: 'API endpoints will be implemented in upcoming tasks' });
-});
+// API routes
+app.use('/api/v1', apiRoutes);
 
-// Error handling middleware
-app.use(notFoundHandler);
-app.use(errorHandler);
+// Global error handler
+app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  logger.error('Unhandled error:', error);
+  
+  res.status(error.status || 500).json({
+    error: 'Internal server error',
+    message: process.env.NODE_ENV === 'development' ? error.message : 'An unexpected error occurred',
+    ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+  });
+});
 
 // Start server
 async function startServer() {
