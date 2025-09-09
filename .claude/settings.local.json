@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(scripts/create-new-feature.sh:*)",
+      "Bash(chmod:*)",
+      "Bash(./scripts/create-new-feature.sh:*)",
+      "Bash(scripts/setup-plan.sh:*)",
+      "Bash(./scripts/setup-plan.sh:*)",
+      "WebSearch",
+      "Bash(scripts/check-task-prerequisites.sh:*)",
+      "Bash(./scripts/check-task-prerequisites.sh:*)",
+      "Bash(npm install)",
+      "Bash(npm:*)",
+      "Bash(npm install:*)",
+      "Bash(node:*)",
+      "Bash(brew:*)",
+      "Bash(gh auth:*)",
+      "Bash(createdb:*)",
+      "Bash(psql:*)",
+      "Bash(gh repo create:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

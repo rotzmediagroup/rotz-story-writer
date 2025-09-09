@@ -1,0 +1,1156 @@
+openapi: 3.0.3
+info:
+  title: AI Story Generation API
+  description: API for AI-powered story generation platform
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: api@storyforge.ai
+servers:
+  - url: https://api.storyforge.ai/v1
+    description: Production server
+  - url: http://localhost:3001/api/v1
+    description: Development server
+
+paths:
+  /stories:
+    post:
+      summary: Create new story
+      operationId: createStory
+      tags:
+        - Stories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateStoryRequest'
+      responses:
+        '201':
+          description: Story created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoryResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      summary: List user stories
+      operationId: listStories
+      tags:
+        - Stories
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, planning, generating, complete, archived]
+        - name: genre
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Stories retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoriesListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /stories/{storyId}:
+    get:
+      summary: Get story details
+      operationId: getStory
+      tags:
+        - Stories
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+      responses:
+        '200':
+          description: Story retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoryDetailResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Update story metadata
+      operationId: updateStory
+      tags:
+        - Stories
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateStoryRequest'
+      responses:
+        '200':
+          description: Story updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoryResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      summary: Delete story
+      operationId: deleteStory
+      tags:
+        - Stories
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+      responses:
+        '204':
+          description: Story deleted successfully
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /stories/{storyId}/plan:
+    post:
+      summary: Generate story plan
+      operationId: generateStoryPlan
+      tags:
+        - Story Generation
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GeneratePlanRequest'
+      responses:
+        '202':
+          description: Plan generation started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationJobResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+    get:
+      summary: Get story plan
+      operationId: getStoryPlan
+      tags:
+        - Story Generation
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+      responses:
+        '200':
+          description: Story plan retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoryPlanResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      summary: Update story plan
+      operationId: updateStoryPlan
+      tags:
+        - Story Generation
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePlanRequest'
+      responses:
+        '200':
+          description: Plan updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoryPlanResponse'
+
+  /stories/{storyId}/plan/approve:
+    post:
+      summary: Approve story plan for generation
+      operationId: approveStoryPlan
+      tags:
+        - Story Generation
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+      responses:
+        '200':
+          description: Plan approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  approved:
+                    type: boolean
+                  approvedAt:
+                    type: string
+                    format: date-time
+
+  /stories/{storyId}/generate:
+    post:
+      summary: Start story generation
+      operationId: generateStory
+      tags:
+        - Story Generation
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateStoryRequest'
+      responses:
+        '202':
+          description: Generation started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationJobResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Generation already in progress
+
+  /stories/{storyId}/progress:
+    get:
+      summary: Get generation progress (SSE endpoint)
+      operationId: getGenerationProgress
+      tags:
+        - Story Generation
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+      responses:
+        '200':
+          description: SSE stream of progress events
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  event: progress
+                  data: {"stage":"planning","progress":25,"chapter":null}
+                  
+                  event: progress
+                  data: {"stage":"generating","progress":50,"chapter":3}
+
+  /stories/{storyId}/chapters:
+    get:
+      summary: List story chapters
+      operationId: listChapters
+      tags:
+        - Chapters
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [planned, generating, generated, revised]
+      responses:
+        '200':
+          description: Chapters retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChaptersListResponse'
+
+  /stories/{storyId}/chapters/{chapterNumber}:
+    get:
+      summary: Get chapter content
+      operationId: getChapter
+      tags:
+        - Chapters
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+        - $ref: '#/components/parameters/ChapterNumber'
+      responses:
+        '200':
+          description: Chapter retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChapterResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      summary: Update chapter content
+      operationId: updateChapter
+      tags:
+        - Chapters
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+        - $ref: '#/components/parameters/ChapterNumber'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateChapterRequest'
+      responses:
+        '200':
+          description: Chapter updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChapterResponse'
+
+  /stories/{storyId}/chapters/{chapterNumber}/regenerate:
+    post:
+      summary: Regenerate chapter
+      operationId: regenerateChapter
+      tags:
+        - Chapters
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+        - $ref: '#/components/parameters/ChapterNumber'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegenerateChapterRequest'
+      responses:
+        '202':
+          description: Regeneration started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerationJobResponse'
+
+  /stories/{storyId}/export:
+    post:
+      summary: Export story
+      operationId: exportStory
+      tags:
+        - Export
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExportRequest'
+      responses:
+        '202':
+          description: Export started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportJobResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /stories/{storyId}/exports:
+    get:
+      summary: List story exports
+      operationId: listExports
+      tags:
+        - Export
+      parameters:
+        - $ref: '#/components/parameters/StoryId'
+      responses:
+        '200':
+          description: Exports retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExportsListResponse'
+
+  /exports/{exportId}/download:
+    get:
+      summary: Download exported file
+      operationId: downloadExport
+      tags:
+        - Export
+      parameters:
+        - name: exportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '302':
+          description: Redirect to download URL
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          description: Export expired
+
+  /ai-configs:
+    get:
+      summary: List AI configurations
+      operationId: listAIConfigs
+      tags:
+        - AI Configuration
+      responses:
+        '200':
+          description: Configurations retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIConfigsListResponse'
+
+    post:
+      summary: Create AI configuration
+      operationId: createAIConfig
+      tags:
+        - AI Configuration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAIConfigRequest'
+      responses:
+        '201':
+          description: Configuration created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIConfigResponse'
+
+  /ai-configs/{configId}:
+    patch:
+      summary: Update AI configuration
+      operationId: updateAIConfig
+      tags:
+        - AI Configuration
+      parameters:
+        - name: configId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAIConfigRequest'
+      responses:
+        '200':
+          description: Configuration updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AIConfigResponse'
+
+  /prompt-templates:
+    get:
+      summary: List prompt templates
+      operationId: listPromptTemplates
+      tags:
+        - Prompt Templates
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [planning, chapter, character, revision]
+        - name: genre
+          in: query
+          schema:
+            type: string
+        - name: public
+          in: query
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Templates retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptTemplatesListResponse'
+
+    post:
+      summary: Create prompt template
+      operationId: createPromptTemplate
+      tags:
+        - Prompt Templates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePromptTemplateRequest'
+      responses:
+        '201':
+          description: Template created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromptTemplateResponse'
+
+components:
+  parameters:
+    StoryId:
+      name: storyId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Story identifier
+
+    ChapterNumber:
+      name: chapterNumber
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+      description: Chapter number
+
+  schemas:
+    CreateStoryRequest:
+      type: object
+      required:
+        - title
+        - premise
+        - genre
+        - targetLength
+      properties:
+        title:
+          type: string
+          maxLength: 500
+        premise:
+          type: string
+          maxLength: 2000
+        genre:
+          $ref: '#/components/schemas/Genre'
+        subgenre:
+          type: string
+          maxLength: 100
+        targetLength:
+          type: integer
+          minimum: 100
+          maximum: 500000
+        targetAgeGroup:
+          $ref: '#/components/schemas/AgeGroup'
+        contentRating:
+          $ref: '#/components/schemas/ContentRating'
+        themes:
+          type: array
+          items:
+            type: string
+        tone:
+          type: string
+        writingStyle:
+          type: string
+        pov:
+          $ref: '#/components/schemas/PointOfView'
+        tense:
+          $ref: '#/components/schemas/Tense'
+        aiConfigId:
+          type: string
+          format: uuid
+
+    StoryResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        premise:
+          type: string
+        genre:
+          $ref: '#/components/schemas/Genre'
+        subgenre:
+          type: string
+        targetLength:
+          type: integer
+        actualLength:
+          type: integer
+        status:
+          $ref: '#/components/schemas/StoryStatus'
+        qualityScore:
+          type: number
+          format: float
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    StoryDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/StoryResponse'
+        - type: object
+          properties:
+            targetAgeGroup:
+              $ref: '#/components/schemas/AgeGroup'
+            contentRating:
+              $ref: '#/components/schemas/ContentRating'
+            themes:
+              type: array
+              items:
+                type: string
+            tone:
+              type: string
+            writingStyle:
+              type: string
+            pov:
+              $ref: '#/components/schemas/PointOfView'
+            tense:
+              $ref: '#/components/schemas/Tense'
+            plan:
+              $ref: '#/components/schemas/StoryPlanResponse'
+            chapters:
+              type: array
+              items:
+                $ref: '#/components/schemas/ChapterSummary'
+
+    StoriesListResponse:
+      type: object
+      properties:
+        stories:
+          type: array
+          items:
+            $ref: '#/components/schemas/StoryResponse'
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    GeneratePlanRequest:
+      type: object
+      properties:
+        regenerate:
+          type: boolean
+          default: false
+        customInstructions:
+          type: string
+          maxLength: 1000
+
+    StoryPlanResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        totalChapters:
+          type: integer
+        actStructure:
+          type: object
+        chapterSummaries:
+          type: array
+          items:
+            type: object
+            properties:
+              chapterNumber:
+                type: integer
+              title:
+                type: string
+              summary:
+                type: string
+              wordCount:
+                type: integer
+        storyArc:
+          type: object
+        characterArcs:
+          type: array
+          items:
+            type: object
+        approved:
+          type: boolean
+        approvedAt:
+          type: string
+          format: date-time
+
+    GenerateStoryRequest:
+      type: object
+      properties:
+        startChapter:
+          type: integer
+          minimum: 1
+        endChapter:
+          type: integer
+          minimum: 1
+        pauseOnError:
+          type: boolean
+          default: false
+        customInstructions:
+          type: string
+
+    GenerationJobResponse:
+      type: object
+      properties:
+        jobId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [queued, processing, completed, failed]
+        progressUrl:
+          type: string
+          format: uri
+        estimatedTime:
+          type: integer
+          description: Estimated minutes to complete
+
+    ChapterResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        chapterNumber:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        wordCount:
+          type: integer
+        status:
+          $ref: '#/components/schemas/ChapterStatus'
+        qualityMetrics:
+          type: object
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ChapterSummary:
+      type: object
+      properties:
+        chapterNumber:
+          type: integer
+        title:
+          type: string
+        wordCount:
+          type: integer
+        status:
+          $ref: '#/components/schemas/ChapterStatus'
+
+    ChaptersListResponse:
+      type: object
+      properties:
+        chapters:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChapterSummary'
+        total:
+          type: integer
+
+    UpdateChapterRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+
+    RegenerateChapterRequest:
+      type: object
+      properties:
+        preserveStyle:
+          type: boolean
+          default: true
+        customInstructions:
+          type: string
+
+    ExportRequest:
+      type: object
+      required:
+        - format
+      properties:
+        format:
+          $ref: '#/components/schemas/ExportFormat'
+        options:
+          type: object
+          properties:
+            fontSize:
+              type: integer
+            pageSize:
+              type: string
+            includeTableOfContents:
+              type: boolean
+            includeMetadata:
+              type: boolean
+
+    ExportJobResponse:
+      type: object
+      properties:
+        exportId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, processing, complete, failed]
+        format:
+          $ref: '#/components/schemas/ExportFormat'
+        estimatedTime:
+          type: integer
+        downloadUrl:
+          type: string
+          format: uri
+
+    ExportsListResponse:
+      type: object
+      properties:
+        exports:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              format:
+                $ref: '#/components/schemas/ExportFormat'
+              status:
+                type: string
+              fileSize:
+                type: integer
+              downloadUrl:
+                type: string
+                format: uri
+              expiresAt:
+                type: string
+                format: date-time
+              createdAt:
+                type: string
+                format: date-time
+
+    CreateAIConfigRequest:
+      type: object
+      required:
+        - name
+        - provider
+        - model
+      properties:
+        name:
+          type: string
+        provider:
+          $ref: '#/components/schemas/AIProvider'
+        model:
+          type: string
+        apiKey:
+          type: string
+        temperature:
+          type: number
+          minimum: 0
+          maximum: 2
+        maxTokens:
+          type: integer
+        topP:
+          type: number
+        frequencyPenalty:
+          type: number
+        presencePenalty:
+          type: number
+        isDefault:
+          type: boolean
+
+    AIConfigResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        provider:
+          $ref: '#/components/schemas/AIProvider'
+        model:
+          type: string
+        temperature:
+          type: number
+        maxTokens:
+          type: integer
+        isDefault:
+          type: boolean
+        isActive:
+          type: boolean
+        monthlyUsage:
+          type: integer
+
+    AIConfigsListResponse:
+      type: object
+      properties:
+        configs:
+          type: array
+          items:
+            $ref: '#/components/schemas/AIConfigResponse'
+
+    UpdateAIConfigRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        temperature:
+          type: number
+        maxTokens:
+          type: integer
+        isDefault:
+          type: boolean
+        isActive:
+          type: boolean
+
+    CreatePromptTemplateRequest:
+      type: object
+      required:
+        - name
+        - category
+        - taskType
+        - templateContent
+      properties:
+        name:
+          type: string
+        category:
+          $ref: '#/components/schemas/PromptCategory'
+        genre:
+          type: string
+        taskType:
+          type: string
+        templateContent:
+          type: string
+        variables:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              description:
+                type: string
+              required:
+                type: boolean
+        exampleOutput:
+          type: string
+        isPublic:
+          type: boolean
+
+    PromptTemplateResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        category:
+          $ref: '#/components/schemas/PromptCategory'
+        genre:
+          type: string
+        taskType:
+          type: string
+        templateContent:
+          type: string
+        variables:
+          type: array
+          items:
+            type: object
+        version:
+          type: integer
+        isPublic:
+          type: boolean
+        isDefault:
+          type: boolean
+        usageCount:
+          type: integer
+        averageRating:
+          type: number
+
+    PromptTemplatesListResponse:
+      type: object
+      properties:
+        templates:
+          type: array
+          items:
+            $ref: '#/components/schemas/PromptTemplateResponse'
+        total:
+          type: integer
+
+    UpdateStoryRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        premise:
+          type: string
+        themes:
+          type: array
+          items:
+            type: string
+        tone:
+          type: string
+        writingStyle:
+          type: string
+
+    UpdatePlanRequest:
+      type: object
+      properties:
+        chapterSummaries:
+          type: array
+          items:
+            type: object
+        characterArcs:
+          type: array
+          items:
+            type: object
+
+    Genre:
+      type: string
+      enum:
+        - Romance
+        - Thriller
+        - Fantasy
+        - SciFi
+        - Mystery
+        - Horror
+        - LiteraryFiction
+
+    AgeGroup:
+      type: string
+      enum:
+        - Children
+        - YA
+        - Adult
+
+    ContentRating:
+      type: string
+      enum:
+        - G
+        - PG
+        - PG13
+        - R
+
+    PointOfView:
+      type: string
+      enum:
+        - FirstPerson
+        - ThirdLimited
+        - ThirdOmniscient
+        - SecondPerson
+
+    Tense:
+      type: string
+      enum:
+        - Past
+        - Present
+
+    StoryStatus:
+      type: string
+      enum:
+        - draft
+        - planning
+        - generating
+        - complete
+        - archived
+
+    ChapterStatus:
+      type: string
+      enum:
+        - planned
+        - generating
+        - generated
+        - revised
+
+    ExportFormat:
+      type: string
+      enum:
+        - pdf
+        - epub
+        - docx
+        - markdown
+
+    AIProvider:
+      type: string
+      enum:
+        - openai
+        - anthropic
+        - google
+
+    PromptCategory:
+      type: string
+      enum:
+        - planning
+        - chapter
+        - character
+        - revision
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+            message:
+              type: string
+            details:
+              type: object
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []
