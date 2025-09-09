@@ -49,7 +49,11 @@ export function createError(
 ): ApiError {
   const error = new Error(message) as ApiError;
   error.statusCode = statusCode;
-  error.code = code;
-  error.details = details;
+  if (code) {
+    error.code = code;
+  }
+  if (details) {
+    error.details = details;
+  }
   return error;
 }

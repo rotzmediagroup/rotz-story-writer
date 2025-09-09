@@ -24,7 +24,13 @@
       "Bash(git branch:*)",
       "Bash(git push:*)",
       "Bash(git checkout:*)",
-      "Bash(git merge:*)"
+      "Bash(git merge:*)",
+      "Bash(npx ts-node:*)",
+      "Bash(DATABASE_URL=\"postgresql://localhost:5432/ai_story_app\" npx ts-node src/index.ts)",
+      "Bash(curl:*)",
+      "Bash(lsof:*)",
+      "Bash(pkill:*)",
+      "Bash(kill:*)"
     ],
     "deny": [],
     "ask": []

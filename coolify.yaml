@@ -1,0 +1,139 @@
+# Coolify Deployment Configuration for AI Story Generation Platform
+version: '1.0'
+
+project:
+  name: ai-story-generator
+  description: AI Story Generation Platform with TypeScript/React/Express
+  
+services:
+  # PostgreSQL Database Service
+  postgres:
+    type: postgresql
+    version: '15'
+    configuration:
+      POSTGRES_DB: ai_story_app
+      POSTGRES_USER: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis Cache Service
+  redis:
+    type: redis
+    version: '7'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Backend API Service
+  backend:
+    type: docker
+    dockerfile: backend/Dockerfile
+    port: 3001
+    healthcheck:
+      path: /health
+      port: 3001
+    environment:
+      # Server Configuration
+      PORT: 3001
+      NODE_ENV: production
+      FRONTEND_URL: ${FRONTEND_URL}
+      
+      # Database Configuration (Coolify will populate these)
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      DB_POOL_MAX: 10
+      DB_IDLE_TIMEOUT: 30000
+      DB_CONNECTION_TIMEOUT: 2000
+      
+      # Redis Configuration
+      REDIS_URL: redis://redis:6379
+      
+      # Security Configuration (set these in Coolify environment)
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXPIRES_IN: 7d
+      SESSION_SECRET: ${SESSION_SECRET}
+      SESSION_MAX_AGE: 86400000
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      
+      # Optional AI Provider Keys (users can provide their own)
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      GOOGLE_AI_API_KEY: ${GOOGLE_AI_API_KEY}
+      
+      # Feature Flags
+      ENABLE_REGISTRATION: true
+      ENABLE_EXPORT: true
+      ENABLE_COLLABORATION: false
+      
+      # Performance Settings
+      GENERATION_TIMEOUT_MS: 7200000
+      EXPORT_TIMEOUT_MS: 300000
+      MAX_CONCURRENT_GENERATIONS: 5
+      API_RATE_LIMIT_WINDOW_MS: 900000
+      API_RATE_LIMIT_MAX_REQUESTS: 100
+      
+      # File Upload Configuration
+      UPLOAD_DIR: ./uploads
+      MAX_FILE_SIZE: 10485760
+      
+      # Logging
+      LOG_LEVEL: info
+    volumes:
+      - backend_uploads:/app/uploads
+    depends_on:
+      - postgres
+      - redis
+
+  # Frontend Application Service  
+  frontend:
+    type: docker
+    dockerfile: frontend/Dockerfile
+    port: 80
+    healthcheck:
+      path: /
+      port: 80
+    depends_on:
+      - backend
+
+# Volumes for persistent storage
+volumes:
+  postgres_data:
+  redis_data:
+  backend_uploads:
+
+# Deployment settings
+deployment:
+  # Build configuration
+  build:
+    context: .
+    
+  # Domain configuration
+  domains:
+    - ${DOMAIN_NAME}  # Set this in Coolify environment
+    
+  # SSL/TLS
+  ssl:
+    enabled: true
+    
+  # Resource limits
+  resources:
+    backend:
+      memory: 512Mi
+      cpu: 0.5
+    frontend:
+      memory: 128Mi
+      cpu: 0.2
+    postgres:
+      memory: 256Mi
+      cpu: 0.3
+    redis:
+      memory: 128Mi
+      cpu: 0.1
